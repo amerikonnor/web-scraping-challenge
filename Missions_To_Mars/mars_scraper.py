@@ -1,6 +1,3 @@
-# To add a new cell, type '# %%'
-# To add a new markdown cell, type '# %% [markdown]'
-# %%
 from bs4 import BeautifulSoup
 from splinter import Browser
 import pandas as pd 
@@ -11,28 +8,66 @@ def scrape():
     executable_path = {"executable_path": "chromedriver.exe"}
     browser = Browser("chrome", **executable_path, headless=False)
 
+    first = None
+    #for some reason it doesn't work everytime, so it will just keep trying!
+    #while first is None:
+        
     browser.visit(mars_news_url)
     html = browser.html
-    browser.quit()
+    
     more_soup = BeautifulSoup(html, 'html.parser')
 
     first = more_soup.find('li', class_='slide')
 
-    news_title = first.h3.text
+    
 
-    news_summary = first.find('div', class_='rollover_description_inner').text
+    if first is None:
+        return_this = {
+            'news_title': 'Something went wrong talking to Nasa!',
+            'news_summary': "For some reason when using scrape from the python file, it doesn't find any html for the page."
+        }
+    else:
+        news_title = first.h3.text
 
-    return_this = [
-        {"news_title": news_title},
-        {'news_summary': news_summary}
-    ]
+        news_summary = first.find('div', class_='rollover_description_inner').text
+
+        return_this = {
+            "news_title": news_title,
+            'news_summary': news_summary
+        }
+
+    
+    perseverance_image_url = 'https://www.nasa.gov/perseverance/images'
+
+    try:
+        browser.visit(perseverance_image_url)
+        image_html = browser.html
+        image_soup = BeautifulSoup(image_html,'html.parser')
+
+        images = image_soup.find('div', class_='is-gallery')
+        first_img = images.find('div', class_='image')
+        first_img_href = first_img.find('img')['src']
+
+        return_this.update({'perseverance_image':'https://www.nasa.gov' + first_img_href})
+
+    except:
+        pass
+
+
+    
+    browser.quit()
+
+
+
 
     facts_url = 'https://space-facts.com/mars/'
 
     tables = pd.read_html(facts_url)
-    facts_table = tables[0].to_html()
+    df=tables[0]
+    df=df.rename(columns={0:'',1:'Mars'})
+    facts_table = df.to_html(index=False,classes='table table-striped', justify='left')
 
-    return_this.add({"data_table": facts_table})
+    return_this.update({"data_table": facts_table})
 
 
     hemisphere_image_urls = [
@@ -42,7 +77,7 @@ def scrape():
         {'title': 'Valles Marineris Hemisphere', 'img_url':'https://astrogeology.usgs.gov/cache/images/b3c7c6c9138f57b4756be9b9c43e3a48_valles_marineris_enhanced.tif_full.jpg'}
     ]
 
-    return_this.add(hemisphere_image_urls)
+    return_this.update({'hemisphere_image_urls': hemisphere_image_urls})
 
     return return_this
 
